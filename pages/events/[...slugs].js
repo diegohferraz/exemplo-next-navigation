@@ -1,16 +1,34 @@
 import { useRouter } from 'next/router'
 
-import {getFilteredEvents} from '../../dummy-data'
+import { getFilteredEvents } from '../../helpers/api-utils'
 
 import EventList from '../../components/events/event-list'
 import ResultsTitle from '../../components/results-title/results-title'
 
-const FilteredEventsPage = () => {
+const FilteredEventsPage = ({ events, hasError, filterDate }) => {
   const router = useRouter()
 
-  const filterData = router.query.slugs
+  if (!events) return <p className='center'>Loading...</p>
 
-  if (!filterData) return <p className='center'>Loading...</p>
+  if (hasError) {
+    return <p className='center'>Ivalid Filters</p>
+  }
+
+  if (!events || events.length === 0) return <p className='center'>No Events Found</p>
+
+  const date = new Date(filterDate.year, filterDate.month - 1)
+  return (
+    <div>
+      <ResultsTitle date={date} />
+      <EventList items={events} />
+    </div>
+  )
+}
+
+export async function getServerSideProps(context) {
+  const { params } = context
+
+  const filterData = params.slugs
 
   const filteredYear = +filterData[0]
   const filteredMonth = +filterData[1]
@@ -22,23 +40,30 @@ const FilteredEventsPage = () => {
     filteredMonth < 1 ||
     filteredMonth > 12
   ) {
-    return <p className='center'>Ivalid Filters</p>
+    return {
+      props: { hasError: true }
+      // notFound: true,
+      // redirect: {
+      //   destination: '/error'
+      // }
+    }
   }
 
-  const filteredEvents = getFilteredEvents({
+  const filteredEvents = await getFilteredEvents({
     year: filteredYear,
     month: filteredMonth
   })
 
-  if (!filteredEvents || filteredEvents.length === 0) return <p className='center'>No Events Found</p>
+  return {
+    props: {
+      events: filteredEvents,
+      filterDate: {
+        year: filteredYear,
+        month: filteredMonth
+      }
+    }
+  }
 
-  const date = new Date(filteredYear, filteredMonth - 1)
-  return (
-    <div>
-      <ResultsTitle date={date} />
-      <EventList items={filteredEvents} />
-    </div>
-  )
 }
  
 export default FilteredEventsPage;
